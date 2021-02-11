@@ -53,7 +53,8 @@ function adm-AD-UserData() {
     )
     
     Get-ADUser -Identity $username -Properties * | Select DisplayName, Department, SamAccountName, Enabled, LockedOut,`
-    PasswordExpired, PasswordNeverExpires, PasswordNotRequired, CannotChangePassword, PasswordLastSet, LastBadPasswordAttempt, LastLogonDate, AccountExpirationDate, extensionAttribute13, EmailAddress, Homedirectory
+    PasswordExpired, PasswordNeverExpires, PasswordNotRequired, CannotChangePassword, PasswordLastSet, LastBadPasswordAttempt, `
+    LastLogonDate, AccountExpirationDate, extensionAttribute13, EmailAddress, Homedirectory
 
 }
 
@@ -166,7 +167,8 @@ function adm-DHCPLookUp() {
     [parameter(Mandatory=$true)][string]$mac,
     [parameter(Mandatory=$false)][string]$dhcpserver='lwesv0225'
     )
-    foreach ($scope in Get-DhcpServerv4Scope -ComputerName $dhcpserver){Get-DhcpServerv4Lease -ComputerName $dhcpserver -AllLeases -ScopeId $scope.ScopeId | Where-Object {$_.clientid -match $mac} | fl}
+    foreach ($scope in Get-DhcpServerv4Scope -ComputerName $dhcpserver){Get-DhcpServerv4Lease -ComputerName $dhcpserver `
+    -AllLeases -ScopeId $scope.ScopeId | Where-Object {$_.clientid -match $mac} | fl}
 }
 
 
@@ -281,8 +283,7 @@ function adm-Troubleshoot() {
     [parameter(Mandatory=$true)][string]$hostname,
     [parameter(Mandatory=$false)][string]$category
     )
-    if ($category -eq $none) { #-ne ('Apps' -or 'Audio' -or 'BITS' -or 'Bluetooth' -or 'Device', 'DeviceCenter', 'IEBrowseWeb', 'IESecurity', 'Keyboard', 'Networking', 'PCW', 'Power', 'Printer', 'Search', 'Speech', 'Video', 'WindowsMediaPlayerConfiguration', 'WindowsMediaPlayerMediaLibrary', 'WindowsMediaPlayerPlayDVD', 'WindowsUpdate'))) {
-
+    if ($category -eq $none) { 
         Write-Host ''
         Write-Host 'Please select a category of the troubleshoot:'
         Write-Host ''
@@ -377,7 +378,8 @@ function adm-CompareUsers() {
     else {
         $shared = $groups2 | %{ if ($groups1 -contains $_) { $_ } }
     }
-    $data = @{$user1=@{'Groups'=$groups1;'Exclusive Groups'=$dif1;'Excluded Groups'=$dif2};$user2=@{'Groups'=$groups2;'Exclusive Groups'=$dif2;'Excluded Groups'=$dif1};'Shared Groups'=$shared}
+    $data = @{$user1=@{'Groups'=$groups1;'Exclusive Groups'=$dif1;'Excluded Groups'=$dif2};$user2=@{'Groups'=$groups2;`
+    'Exclusive Groups'=$dif2;'Excluded Groups'=$dif1};'Shared Groups'=$shared}
     Write-Host ''
     Write-Host $user1 'Exclusive Groups:' -ForegroundColor Yellow
     $data.$user1.'Exclusive Groups' | Sort-Object
@@ -448,10 +450,9 @@ function adm-lastboot() {
     [parameter(Mandatory=$true)][string]$hostname
     )
     if ((Test-Connection -Count 1 -Quiet -ComputerName $hostname) -eq $true) {
-        $return = Invoke-Command -ComputerName $hostname { Get-WinEvent -FilterHashtable @{Logname='System';ID=1074} -MaxEvents 5000 | Select TimeCreated, Message }#| Where-Object -Property Message -match 'shutdown.exe' | Where-Object -Property Message -Match 'neu starten' }
-        #Get-WinEvent -FilterHashtable @{Logname='System';ID=6006} -MaxEvents 1 }
+        $return = Invoke-Command -ComputerName $hostname { Get-WinEvent -FilterHashtable @{Logname='System';ID=1074} -MaxEvents 5000 | `
+        Select TimeCreated, Message }
         Write-Host 'Last Reboot Time: '$return[0].TimeCreated -ForegroundColor Yellow
-        #Get-CimInstance -ClassName win32_operatingsystem | select csname, lastbootuptime }
     }
     else {
         Write-Host $hostname ' is offline or not available' -ForegroundColor Red
