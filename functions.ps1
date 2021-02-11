@@ -165,7 +165,7 @@ function adm-FileExists() {
 function adm-DHCPLookUp() {
     Param(
     [parameter(Mandatory=$true)][string]$mac,
-    [parameter(Mandatory=$false)][string]$dhcpserver='lwesv0225'
+    [parameter(Mandatory=$false)][string]$dhcpserver='DHCPSERVER' # Name of your DHCP-Server 
     )
     foreach ($scope in Get-DhcpServerv4Scope -ComputerName $dhcpserver){Get-DhcpServerv4Lease -ComputerName $dhcpserver `
     -AllLeases -ScopeId $scope.ScopeId | Where-Object {$_.clientid -match $mac} | fl}
@@ -176,7 +176,7 @@ function adm-DHCPLookUp() {
 function adm-PrintersRemote() {
     Param(
     [parameter(Mandatory=$true)][string]$hostname,
-    [parameter(Mandatory=$false)][string]$printserver='lwesv0125'
+    [parameter(Mandatory=$false)][string]$printserver='PRINTSERVER' # Name of your Print-Server
     )
     
     $printers = [System.Collections.ArrayList]@()
@@ -227,7 +227,7 @@ function adm-PrintersRemote() {
 function adm-PrintersRemoteRemove() {
     Param(
     [parameter(Mandatory=$true)][string]$hostname,
-    [parameter(Mandatory=$false)][string]$printserver='lwesv0125'
+    [parameter(Mandatory=$false)][string]$printserver='PRINTSERVER' # Name of your Print-Server
     )
     if ($hostname -eq $none) {
         $hostname = Read-Host 'Please enter the hostname of the remote computer'
@@ -396,20 +396,20 @@ function adm-CompareUsers() {
 
 function adm-ad-setPhoto() {
     Param(
-    [parameter(Mandatory=$true)][string]$user,
+    [parameter(Mandatory=$true)][string]$username,
     [parameter(Mandatory=$true)][string]$fotopath
     )
-    Set-ADUser $user -Clear thumbnailPhoto
+    Set-ADUser $username -Clear thumbnailPhoto
     Start-Sleep -Seconds 5
     $photo = [byte[]](Get-Content $fotopath -Encoding byte)
-    Set-ADUser $user -Replace @{thumbnailPhoto=$photo}
+    Set-ADUser $username -Replace @{thumbnailPhoto=$photo}
 }
 
 function adm-ad-permissions() {
     Param(
-    [parameter(Mandatory=$true)][string]$user
+    [parameter(Mandatory=$true)][string]$username
     )
-    $user = $user.ToUpper().Trim() 
+    $user = $username.ToUpper().Trim() 
     $Res = (Get-ADPrincipalGroupMembership $user | Measure-Object).Count 
     If ($Res -GT 0) { 
         Write-Host "$user is member of the following Groups:" -ForegroundColor Cyan
@@ -420,10 +420,10 @@ function adm-ad-permissions() {
 
 function adm-ad-checkpermission() {
     Param(
-    [parameter(Mandatory=$true)][string]$user,
+    [parameter(Mandatory=$true)][string]$username,
     [parameter(Mandatory=$true)][string]$group
     )
-    $user = $user.ToUpper().Trim() 
+    $user = $username.ToUpper().Trim() 
     $Res = (Get-ADPrincipalGroupMembership $user | Measure-Object).Count 
     If ($Res -GT 0) { 
         $permissions = Get-ADPrincipalGroupMembership $user
@@ -466,14 +466,14 @@ function adm-moveUserFiles() {
     Param(
     [parameter(Mandatory=$true)][string]$source_host,
     [parameter(Mandatory=$true)][string]$destination_host,
-    [parameter(Mandatory=$true)][string]$user
+    [parameter(Mandatory=$true)][string]$username
     )
     if ((Test-Connection $host_source -Count 1 -Quiet) -and (Test-Connection $destination_host -Count 1 -Quiet)) {
         $folders = 'Documents','Pictures','Favorites','Downloads','Videos', 'Music', 'Desktop','Links'
         $count = $folders.Count
         $ticker = 0
-        $base_source = '\\'+$source_host+'\c$\Users\'+$user+'\'
-        $base_destination = '\\'+$destination_host+'\c$\Users\'+$user+'\'
+        $base_source = '\\'+$source_host+'\c$\Users\'+$username+'\'
+        $base_destination = '\\'+$destination_host+'\c$\Users\'+$username+'\'
         if (Test-Path $base_destination) {
             $folders | %{ Copy-WithProgress -Source ($base_source+$_) -Destination ($base_destination+$_) }
         }
@@ -517,12 +517,12 @@ Function Copy-WithProgress {
  Function adm-deviceInfo {
     [CmdletBinding()]
     Param (
-        [string]$ComputerName = $env:ComputerName
+        [string]$hostname = $env:ComputerName
     )
 
     try {
-        $SystemEnclosure = Get-CimInstance win32_systemenclosure -computername $ComputerName -ErrorAction Stop
-        $OS = Get-CimInstance Win32_OperatingSystem -Computername $ComputerName -ErrorAction Stop
+        $SystemEnclosure = Get-CimInstance win32_systemenclosure -computername $hostame -ErrorAction Stop
+        $OS = Get-CimInstance Win32_OperatingSystem -Computername $hostname -ErrorAction Stop
     }
     catch {
         Write-Error "$($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)"
@@ -539,7 +539,7 @@ Function Copy-WithProgress {
         OSVersion      = $OS.Version
         InstallDate    = $OS.InstallDate
         LastBootUpTime = $OS.LastBootUpTime
-        BIOSVersion    = (Get-WmiObject -Class Win32_BIOS -ComputerName $ComputerName | Select SMBIOSBIOSVersion).SMBIOSBIOSVersion
+        BIOSVersion    = (Get-WmiObject -Class Win32_BIOS -ComputerName $hostname | Select SMBIOSBIOSVersion).SMBIOSBIOSVersion
     }
 
     #Writing to Host
@@ -554,7 +554,7 @@ Function Copy-WithProgress {
     Write-Host "Computer Disk Info" -Foregroundcolor Cyan
 
     #Display Drives
-    Get-CimInstance win32_logicaldisk -filter "drivetype=3" -computer $ComputerName |
+    Get-CimInstance win32_logicaldisk -filter "drivetype=3" -computer $hostname |
     Format-Table -Property DeviceID, Volumename, `
     @{Name = "SizeGB"; Expression = { [math]::Round($_.Size / 1GB) } }, `
     @{Name = "FreeGB"; Expression = { [math]::Round($_.Freespace / 1GB, 2) } }, `
@@ -563,7 +563,7 @@ Function Copy-WithProgress {
     #Writing to Host
     Write-Host "Network Information" -Foregroundcolor Cyan
 
-    Get-CimInstance win32_networkadapterconfiguration -computer $ComputerName | Where-Object { $null -ne $_.IPAddress } |
+    Get-CimInstance win32_networkadapterconfiguration -computer $hostname | Where-Object { $null -ne $_.IPAddress } |
     Select-Object IPAddress, DefaultIPGateway, DNSServerSearchOrder, IPSubnet, MACAddress, Caption, DHCPEnabled, DHCPServer, DNSDomainSuffixSearchOrder |
     Format-List
 }
@@ -572,7 +572,7 @@ Function Copy-WithProgress {
 function adm-printer-GetQueue () {
     Param(
     [parameter(Mandatory=$true)][string]$printer,
-    [parameter(Mandatory=$false)][string]$printserver='lwesv0125'
+    [parameter(Mandatory=$false)][string]$printserver='PRINTSERVER' # Name of your Print-Server
     )
     $printer = Get-Printer -ComputerName $printserver -Name $printer
     $jobs = Get-PrintJob -PrinterObject $printer
